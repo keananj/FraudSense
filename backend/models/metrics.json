@@ -1,0 +1,88 @@
+{
+  "best_model": "SVM (LinearSVC)",
+  "results": [
+    {
+      "model": "Naive Bayes",
+      "accuracy": 0.9709,
+      "precision": 0.9531,
+      "recall": 0.9923,
+      "f1": 0.9723,
+      "confusion_matrix": [
+        [
+          348,
+          19
+        ],
+        [
+          3,
+          386
+        ]
+      ],
+      "cv_f1_mean": 0.9764,
+      "cv_f1_std": 0.0026
+    },
+    {
+      "model": "Logistic Regression",
+      "accuracy": 0.9709,
+      "precision": 0.9553,
+      "recall": 0.9897,
+      "f1": 0.9722,
+      "confusion_matrix": [
+        [
+          349,
+          18
+        ],
+        [
+          4,
+          385
+        ]
+      ],
+      "cv_f1_mean": 0.9818,
+      "cv_f1_std": 0.0031
+    },
+    {
+      "model": "SVM (LinearSVC)",
+      "accuracy": 0.9775,
+      "precision": 0.9673,
+      "recall": 0.9897,
+      "f1": 0.9784,
+      "confusion_matrix": [
+        [
+          354,
+          13
+        ],
+        [
+          4,
+          385
+        ]
+      ],
+      "cv_f1_mean": 0.9807,
+      "cv_f1_std": 0.0032
+    }
+  ],
+  "per_channel": {
+    "email": {
+      "samples": 515,
+      "accuracy": 0.9883,
+      "f1": 0.9891,
+      "recall": 0.9964
+    },
+    "sms": {
+      "samples": 241,
+      "accuracy": 0.9544,
+      "f1": 0.9532,
+      "recall": 0.9739
+    }
+  },
+  "dataset": {
+    "total": 3779,
+    "fraud": 1942,
+    "legit": 1837,
+    "by_channel": {
+      "email": 2636,
+      "sms": 1143
+    },
+    "train_size": 3023,
+    "test_size": 756,
+    "vocab_size": 56998
+  }
+}
