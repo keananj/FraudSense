@@ -6,16 +6,19 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Pastikan import ini tetap mengarah ke modul predictormu
-from .predictor import get_predictor
+from predictor import get_predictor
 
 # --------------------------------------------------------------------------
 # Penyesuaian Path untuk Vercel Serverless
 # --------------------------------------------------------------------------
 BASE = os.path.dirname(__file__)
-# Karena vectorizer.joblib dan model.joblib ditaruh langsung di folder /api,
-# kita langsung arahkan ke BASE folder api tersebut.
-MODEL_DIR = BASE 
+# vectorizer.joblib, model.joblib, dan metrics.json ditaruh langsung di
+# folder /api, jadi kita arahkan langsung ke BASE folder api tersebut.
+MODEL_DIR = BASE
+# Vercel's filesystem is read-only except /tmp, and /tmp is not shared or
+# persisted across invocations/instances -- feedback here is best-effort,
+# not durable storage.
+FEEDBACK_PATH = "/tmp/feedback.json"
 
 app = FastAPI(
     title="FraudSense API",
@@ -80,35 +83,53 @@ def predict(req: PredictRequest):
     return result
 
 
-# --------------------------------------------------------------------------
-# Keterangan Penting Mengenai Fitur Feedback / Metrics:
-# --------------------------------------------------------------------------
 @app.post("/api/feedback")
 def submit_feedback(req: FeedbackRequest):
-    """
-    Vercel Serverless memiliki sistem berkas bersifat Read-Only. 
-    Menyimpan feedback ke file lokal JSON tidak didukung di Vercel.
-    Menerima request dengan sukses, tetapi tidak menulis ke berkas disk.
-    """
-    return {
-        "status": "received", 
-        "message": "Feedback simulation triggered successfully. Persistent database required for production storage."
-    }
+    """Store a user-testing questionnaire submission (best-effort, see FEEDBACK_PATH note above)."""
+    entry = req.model_dump()
+    entry["timestamp"] = datetime.now(timezone.utc).isoformat()
+
+    records = []
+    if os.path.exists(FEEDBACK_PATH):
+        try:
+            with open(FEEDBACK_PATH) as f:
+                records = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            records = []
+    records.append(entry)
+    with open(FEEDBACK_PATH, "w") as f:
+        json.dump(records, f, indent=2)
+
+    return {"status": "saved", "total_submissions": len(records)}
 
 
 @app.get("/api/feedback")
 def get_feedback():
-    """Mengembalikan data simulasi kosong karena Vercel tidak mendukung penyimpanan berkas lokal."""
-    return {"count": 0, "average_rating": None, "submissions": []}
+    """Return aggregated user-testing results."""
+    if not os.path.exists(FEEDBACK_PATH):
+        return {"count": 0, "average_rating": None, "submissions": []}
+    with open(FEEDBACK_PATH) as f:
+        records = json.load(f)
+
+    if not records:
+        return {"count": 0, "average_rating": None, "submissions": []}
+
+    ratings = [r["rating"] for r in records if "rating" in r]
+    avg = round(sum(ratings) / len(ratings), 2) if ratings else None
+    changed = sum(1 for r in records if r.get("changed_mind"))
+    return {
+        "count": len(records),
+        "average_rating": avg,
+        "changed_mind_count": changed,
+        "submissions": records,
+    }
 
 
 @app.get("/api/metrics")
 def metrics():
-    """Mengembalikan metrik performa model statis karena metrics.json lokal tidak dipublish."""
-    return {
-        "Model": "SVM (LinearSVC)",
-        "Accuracy": "97.75%",
-        "Precision": "96.73%",
-        "Recall": "98.97%",
-        "F1-Score": "97.84%"
-    }
+    path = os.path.join(MODEL_DIR, "metrics.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404,
+                            detail="Metrics not found. Run train.py first.")
+    with open(path) as f:
+        return json.load(f)

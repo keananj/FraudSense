@@ -18,7 +18,7 @@ import numpy as np
 from explain import build_explanation
 from preprocess import clean_text
 
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+MODEL_DIR = os.path.dirname(__file__)
 
 
 class FraudPredictor:
